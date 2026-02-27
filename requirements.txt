@@ -1,0 +1,391 @@
+import json
+import os
+import pandas as pd
+import numpy as np
+from datetime import datetime, time, timedelta
+import streamlit as st
+
+CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "config.json")
+EMPLOYEES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "employees.csv")
+ATTENDANCE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "attendance.csv")
+LEAVES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "leaves.csv")
+
+# ─────────────────────────────────────────────
+# CONFIG
+# ─────────────────────────────────────────────
+
+def load_config():
+    with open(CONFIG_PATH, "r") as f:
+        return json.load(f)
+
+def save_config(config):
+    with open(CONFIG_PATH, "w") as f:
+        json.dump(config, f, indent=2)
+
+# ─────────────────────────────────────────────
+# EMPLOYEES
+# ─────────────────────────────────────────────
+
+EMPLOYEE_COLUMNS = [
+    "ecode", "name", "department", "designation", "doj", "dob",
+    "gender", "mobile", "email", "address",
+    "father_name", "mother_name", "spouse_name",
+    "nominee_name", "nominee_relation", "nominee_dob",
+    "bank_name", "account_no", "ifsc", "uan", "pf_no", "esic_no",
+    "shift", "is_open_shift",
+    "gross_salary", "basic", "hra", "conveyance", "special_allowance",
+    "medical_allowance", "food_allowance",
+    "pf_applicable", "esic_applicable",
+    "status", "exit_date"
+]
+
+def load_employees():
+    if os.path.exists(EMPLOYEES_PATH):
+        df = pd.read_csv(EMPLOYEES_PATH, dtype=str)
+        for col in EMPLOYEE_COLUMNS:
+            if col not in df.columns:
+                df[col] = ""
+        return df
+    else:
+        df = pd.DataFrame(columns=EMPLOYEE_COLUMNS)
+        return df
+
+def save_employees(df):
+    df.to_csv(EMPLOYEES_PATH, index=False)
+
+# ─────────────────────────────────────────────
+# ATTENDANCE
+# ─────────────────────────────────────────────
+
+ATTENDANCE_COLUMNS = [
+    "ecode", "name", "date", "day", "shift",
+    "in_time", "out_time",
+    "working_hours", "overtime_hours", "early_going_minutes",
+    "late_entry_minutes", "status", "remarks"
+]
+
+def load_attendance():
+    if os.path.exists(ATTENDANCE_PATH):
+        df = pd.read_csv(ATTENDANCE_PATH, dtype=str)
+        for col in ATTENDANCE_COLUMNS:
+            if col not in df.columns:
+                df[col] = ""
+        return df
+    else:
+        return pd.DataFrame(columns=ATTENDANCE_COLUMNS)
+
+def save_attendance(df):
+    df.to_csv(ATTENDANCE_PATH, index=False)
+
+# ─────────────────────────────────────────────
+# LEAVE
+# ─────────────────────────────────────────────
+
+LEAVE_COLUMNS = [
+    "ecode", "name", "leave_type", "from_date", "to_date",
+    "days", "reason", "status", "applied_on"
+]
+
+def load_leaves():
+    if os.path.exists(LEAVES_PATH):
+        df = pd.read_csv(LEAVES_PATH, dtype=str)
+        for col in LEAVE_COLUMNS:
+            if col not in df.columns:
+                df[col] = ""
+        return df
+    else:
+        return pd.DataFrame(columns=LEAVE_COLUMNS)
+
+def save_leaves(df):
+    df.to_csv(LEAVES_PATH, index=False)
+
+# ─────────────────────────────────────────────
+# TIME CALCULATIONS
+# ─────────────────────────────────────────────
+
+def parse_time(t_str):
+    """Parse HH:MM string to time object"""
+    if pd.isna(t_str) or str(t_str).strip() == "":
+        return None
+    try:
+        t_str = str(t_str).strip()
+        for fmt in ["%H:%M", "%H:%M:%S", "%I:%M %p", "%I:%M%p"]:
+            try:
+                return datetime.strptime(t_str, fmt).time()
+            except:
+                pass
+        return None
+    except:
+        return None
+
+def time_to_minutes(t):
+    if t is None:
+        return None
+    return t.hour * 60 + t.minute
+
+def minutes_to_hhmm(mins):
+    if mins is None or pd.isna(mins):
+        return "--"
+    mins = int(mins)
+    sign = "-" if mins < 0 else ""
+    mins = abs(mins)
+    h = mins // 60
+    m = mins % 60
+    return f"{sign}{h:02d}:{m:02d}"
+
+def calculate_working_hours(in_time_str, out_time_str, shift_name, config):
+    """
+    Returns dict with working_hours, overtime_hours, late_entry_minutes,
+    early_going_minutes, status
+    """
+    result = {
+        "working_hours": 0.0,
+        "overtime_hours": 0.0,
+        "late_entry_minutes": 0,
+        "early_going_minutes": 0,
+        "status": "Present"
+    }
+
+    in_t = parse_time(in_time_str)
+    out_t = parse_time(out_time_str)
+
+    if in_t is None and out_t is None:
+        result["status"] = "Missing Punch"
+        return result
+    if in_t is None:
+        result["status"] = "Missing IN Punch"
+        return result
+    if out_t is None:
+        result["status"] = "Missing OUT Punch"
+        return result
+
+    in_mins = time_to_minutes(in_t)
+    out_mins = time_to_minutes(out_t)
+
+    # Handle overnight shifts
+    if out_mins < in_mins:
+        out_mins += 24 * 60
+
+    actual_work_mins = out_mins - in_mins
+
+    # Find shift config
+    shifts = config["shifts"]["fixed"]
+    grace = config["shifts"]["grace_period_minutes"]
+    ot_threshold = config["shifts"]["overtime_threshold_minutes"]
+
+    shift_config = None
+    for s in shifts:
+        if s["name"] == shift_name:
+            shift_config = s
+            break
+
+    # Open shift - just calculate actual hours
+    if shift_config is None or shift_name == "Open Shift":
+        result["working_hours"] = round(actual_work_mins / 60, 2)
+        result["status"] = "Present"
+        return result
+
+    shift_start_mins = time_to_minutes(parse_time(shift_config["start"]))
+    shift_end_mins = time_to_minutes(parse_time(shift_config["end"]))
+    shift_total_mins = (shift_end_mins - shift_start_mins)
+
+    # Late entry
+    effective_in = in_mins
+    if in_mins > shift_start_mins + grace:
+        result["late_entry_minutes"] = in_mins - shift_start_mins
+    elif in_mins <= shift_start_mins + grace:
+        effective_in = shift_start_mins  # grace applied
+
+    # Early going
+    if out_mins < shift_end_mins:
+        result["early_going_minutes"] = shift_end_mins - out_mins
+
+    # Overtime
+    if out_mins > shift_end_mins + ot_threshold:
+        result["overtime_hours"] = round((out_mins - shift_end_mins) / 60, 2)
+
+    # Early coming (before shift start)
+    early_coming = max(0, shift_start_mins - in_mins)
+
+    result["working_hours"] = round(actual_work_mins / 60, 2)
+    result["status"] = "Present"
+    return result
+
+
+# ─────────────────────────────────────────────
+# SANDWICH RULE
+# ─────────────────────────────────────────────
+
+def apply_sandwich_rule(df_employee_month, config):
+    """
+    Apply sandwich rule to a single employee's monthly attendance DataFrame
+    df must have columns: date, status, day
+    Returns modified DataFrame
+    """
+    if not config["attendance"]["sandwich_rule"]:
+        return df_employee_month
+
+    df = df_employee_month.copy()
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date").reset_index(drop=True)
+    week_off = config["attendance"]["week_off"]
+    min_days = config["attendance"]["min_days_per_week"]
+
+    # Rule 1: If absent on day before AND after a weekly off, mark weekly off as absent
+    for i in range(1, len(df) - 1):
+        if df.loc[i, "day"] == week_off:
+            prev_status = df.loc[i-1, "status"]
+            next_status = df.loc[i+1, "status"]
+            if prev_status == "Absent" and next_status == "Absent":
+                df.loc[i, "status"] = "Absent (Sandwich)"
+                df.loc[i, "remarks"] = "Sandwich Rule Applied"
+
+    # Rule 2: Min 3 days work per week (Mon-Sat)
+    df["week"] = df["date"].dt.isocalendar().week
+    for week_num, week_df in df.groupby("week"):
+        working_days_df = week_df[week_df["day"] != week_off]
+        present_days = working_days_df[working_days_df["status"].isin(["Present"])].shape[0]
+        if present_days < min_days and present_days > 0:
+            # Mark week as insufficient attendance - flag it
+            idxs = week_df[week_df["day"] != week_off].index
+            for idx in idxs:
+                if df.loc[idx, "status"] == "Present":
+                    df.loc[idx, "remarks"] = str(df.loc[idx, "remarks"]) + " | Low Week Attendance"
+
+    return df
+
+
+# ─────────────────────────────────────────────
+# PAYROLL CALCULATION
+# ─────────────────────────────────────────────
+
+def calculate_payroll(employee_row, present_days, total_working_days, overtime_hours, config):
+    """
+    Calculate monthly payroll for one employee
+    Returns dict with all salary breakup
+    """
+    cfg_pf = config["pf"]
+    cfg_esic = config["esic"]
+    cfg_ot = config["overtime"]
+
+    basic = float(employee_row.get("basic", 0) or 0)
+    hra = float(employee_row.get("hra", 0) or 0)
+    conveyance = float(employee_row.get("conveyance", 0) or 0)
+    special = float(employee_row.get("special_allowance", 0) or 0)
+    medical = float(employee_row.get("medical_allowance", 0) or 0)
+    food = float(employee_row.get("food_allowance", 0) or 0)
+
+    gross = basic + hra + conveyance + special + medical + food
+
+    # Per day salary
+    per_day = gross / total_working_days if total_working_days > 0 else 0
+    earned_gross = per_day * present_days
+
+    # Proportionate components
+    ratio = present_days / total_working_days if total_working_days > 0 else 0
+    earned_basic = basic * ratio
+    earned_hra = hra * ratio
+    earned_conv = conveyance * ratio
+    earned_special = special * ratio
+    earned_medical = medical * ratio
+    earned_food = food * ratio
+
+    # Overtime
+    ot_pay = 0.0
+    if cfg_ot["enabled"]:
+        base_for_ot = earned_basic if cfg_ot["calculation_base"] == "Basic" else earned_gross
+        hourly_rate = base_for_ot / (26 * 8)  # 26 working days * 8 hrs
+        ot_pay = hourly_rate * overtime_hours * cfg_ot["rate_multiplier"]
+
+    # PF
+    pf_employee = 0.0
+    pf_employer = 0.0
+    eps = 0.0
+
+    pf_applicable = str(employee_row.get("pf_applicable", "Yes")).lower() in ["yes", "true", "1", "y"]
+
+    if cfg_pf["enabled"] and pf_applicable:
+        pf_base_name = cfg_pf["pf_base"]
+        if pf_base_name == "Basic":
+            pf_base_amount = earned_basic
+        elif pf_base_name == "Basic + DA":
+            pf_base_amount = earned_basic  # DA not separate here
+        elif pf_base_name == "Gross":
+            pf_base_amount = earned_gross
+        else:
+            pf_base_amount = earned_basic
+
+        if cfg_pf["cap_at_15000"]:
+            pf_base_amount = min(pf_base_amount, 15000 * ratio)
+
+        pf_employee = round(pf_base_amount * cfg_pf["employee_percentage"] / 100, 2)
+        pf_employer = round(pf_base_amount * cfg_pf["employer_percentage"] / 100, 2)
+        eps = round(pf_base_amount * cfg_pf["eps_percentage"] / 100, 2)
+
+    # ESIC
+    esic_employee = 0.0
+    esic_employer = 0.0
+    esic_applicable = str(employee_row.get("esic_applicable", "No")).lower() in ["yes", "true", "1", "y"]
+
+    if cfg_esic["enabled"] and esic_applicable:
+        if gross <= cfg_esic["wage_ceiling"]:
+            esic_employee = round(earned_gross * cfg_esic["employee_percentage"] / 100, 2)
+            esic_employer = round(earned_gross * cfg_esic["employer_percentage"] / 100, 2)
+
+    # Net pay
+    total_deductions = pf_employee + esic_employee
+    net_pay = round(earned_gross + ot_pay - total_deductions, 2)
+
+    return {
+        "ecode": employee_row.get("ecode", ""),
+        "name": employee_row.get("name", ""),
+        "present_days": present_days,
+        "gross_salary": round(gross, 2),
+        "earned_basic": round(earned_basic, 2),
+        "earned_hra": round(earned_hra, 2),
+        "earned_conveyance": round(earned_conv, 2),
+        "earned_special": round(earned_special, 2),
+        "earned_medical": round(earned_medical, 2),
+        "earned_food": round(earned_food, 2),
+        "earned_gross": round(earned_gross, 2),
+        "overtime_hours": round(overtime_hours, 2),
+        "overtime_pay": round(ot_pay, 2),
+        "pf_employee": pf_employee,
+        "pf_employer": pf_employer,
+        "eps": eps,
+        "esic_employee": esic_employee,
+        "esic_employer": esic_employer,
+        "total_deductions": round(total_deductions, 2),
+        "net_pay": net_pay
+    }
+
+
+# ─────────────────────────────────────────────
+# LEAVE BALANCE
+# ─────────────────────────────────────────────
+
+def get_leave_balance(ecode, year, config):
+    leaves_df = load_leaves()
+    cfg_leave = config["leave"]
+
+    employee_leaves = leaves_df[
+        (leaves_df["ecode"] == ecode) &
+        (leaves_df["status"] == "Approved") &
+        (pd.to_datetime(leaves_df["from_date"]).dt.year == year)
+    ]
+
+    pl_taken = employee_leaves[employee_leaves["leave_type"] == "PL"]["days"].astype(float).sum()
+    cl_taken = employee_leaves[employee_leaves["leave_type"] == "CL"]["days"].astype(float).sum()
+    sl_taken = employee_leaves[employee_leaves["leave_type"] == "SL"]["days"].astype(float).sum()
+
+    return {
+        "pl_entitled": cfg_leave["pl"]["annual"],
+        "pl_taken": pl_taken,
+        "pl_balance": max(0, cfg_leave["pl"]["annual"] - pl_taken),
+        "cl_entitled": cfg_leave["cl"]["annual"],
+        "cl_taken": cl_taken,
+        "cl_balance": max(0, cfg_leave["cl"]["annual"] - cl_taken),
+        "sl_entitled": cfg_leave["sl"]["annual"],
+        "sl_taken": sl_taken,
+        "sl_balance": max(0, cfg_leave["sl"]["annual"] - sl_taken),
+    }
