@@ -23,40 +23,97 @@ st.set_page_config(
 # ── Custom CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
+    /* ── Main background ── */
     .stApp { background-color: #f0f2f6; }
+
+    /* ── Sidebar ── */
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #1a237e 0%, #283593 50%, #3949ab 100%);
+        background: linear-gradient(180deg, #1a237e 0%, #283593 50%, #3949ab 100%) !important;
     }
-    [data-testid="stSidebar"] .stMarkdown h1,
-    [data-testid="stSidebar"] .stMarkdown h2,
-    [data-testid="stSidebar"] .stMarkdown h3,
-    [data-testid="stSidebar"] label,
-    [data-testid="stSidebar"] .stMarkdown p { color: white !important; }
+    [data-testid="stSidebar"] * { color: white !important; }
+    [data-testid="stSidebar"] .stButton > button {
+        background: rgba(255,255,255,0.15) !important;
+        color: white !important;
+        border: 1px solid rgba(255,255,255,0.3) !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        margin-bottom: 4px !important;
+    }
+    [data-testid="stSidebar"] .stButton > button:hover {
+        background: rgba(255,255,255,0.28) !important;
+    }
+
+    /* ── Metric cards ── */
     .metric-card {
         background: white; border-radius: 12px; padding: 20px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        border-left: 4px solid #3949ab; margin-bottom: 12px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+        border-left: 5px solid #3949ab; margin-bottom: 12px;
     }
-    .metric-card h3 { color: #3949ab; font-size: 14px; margin: 0; }
-    .metric-card h1 { color: #1a237e; font-size: 28px; margin: 4px 0; }
+    .metric-card h3 { color: #555; font-size: 13px; font-weight: 600; margin: 0; letter-spacing: 0.5px; }
+    .metric-card h1 { color: #1a237e; font-size: 32px; font-weight: 800; margin: 6px 0 0 0; }
+
+    /* ── Page header banner ── */
     .page-header {
-        background: linear-gradient(135deg, #1a237e, #3949ab);
-        color: white; padding: 20px 28px; border-radius: 12px; margin-bottom: 24px;
+        background: linear-gradient(135deg, #1a237e 0%, #3949ab 100%);
+        color: white; padding: 22px 30px; border-radius: 14px;
+        margin-bottom: 26px;
+        box-shadow: 0 4px 16px rgba(26,35,126,0.3);
     }
-    .page-header h1 { color: white; margin: 0; font-size: 26px; }
-    .page-header p  { color: #c5cae9; margin: 4px 0 0 0; font-size: 14px; }
+    .page-header h1 { color: white !important; margin: 0; font-size: 28px; font-weight: 800; }
+    .page-header p  { color: #c5cae9 !important; margin: 6px 0 0 0; font-size: 15px; }
+
+    /* ── Main content text ── */
+    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #1a237e !important; }
+    label, .stSelectbox label, .stTextInput label,
+    .stNumberInput label, .stDateInput label,
+    .stTextArea label, .stCheckbox label { color: #1a1a2e !important; font-weight: 500 !important; }
+
+    /* ── Buttons ── */
     .stButton > button {
         background: linear-gradient(135deg, #1a237e, #3949ab);
-        color: white; border: none; border-radius: 8px;
-        padding: 8px 20px; font-weight: 600;
+        color: white !important; border: none; border-radius: 8px;
+        padding: 9px 22px; font-weight: 700; font-size: 14px;
+        transition: all 0.2s;
     }
     .stButton > button:hover {
         background: linear-gradient(135deg, #283593, #3f51b5);
-        box-shadow: 0 4px 12px rgba(63,81,181,0.4);
+        box-shadow: 0 4px 14px rgba(63,81,181,0.45);
+        transform: translateY(-1px);
     }
+
+    /* ── Tabs ── */
+    .stTabs [data-baseweb="tab-list"] { gap: 6px; }
+    .stTabs [data-baseweb="tab"] {
+        font-weight: 700; font-size: 14px; color: #555 !important;
+        border-radius: 8px 8px 0 0; padding: 10px 18px;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #1a237e !important;
+        border-bottom: 3px solid #1a237e !important;
+    }
+
+    /* ── Forms & inputs ── */
+    .stTextInput input, .stNumberInput input, .stTextArea textarea,
+    .stSelectbox > div > div { border-radius: 8px !important; }
+
+    /* ── Tables ── */
     .dataframe { font-size: 13px !important; }
-    .stTabs [data-baseweb="tab"] { font-weight: 600; }
-    .stTabs [aria-selected="true"] { color: #1a237e !important; }
+    [data-testid="stDataFrame"] { border-radius: 10px; overflow: hidden; }
+
+    /* ── Info/success/warning boxes ── */
+    .stAlert { border-radius: 10px !important; }
+
+    /* ── Expanders ── */
+    .streamlit-expanderHeader { font-weight: 600 !important; color: #1a237e !important; }
+
+    /* ── Download buttons ── */
+    .stDownloadButton > button {
+        background: white !important; color: #1a237e !important;
+        border: 2px solid #1a237e !important; font-weight: 600 !important;
+    }
+    .stDownloadButton > button:hover {
+        background: #e8eaf6 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -73,6 +130,16 @@ ATTENDANCE_PATH= os.path.join(DATA_DIR, "attendance.csv")
 LEAVES_PATH    = os.path.join(DATA_DIR, "leaves.csv")
 
 os.makedirs(DATA_DIR, exist_ok=True)
+
+# Safe converters - prevent TypeError when config/CSV values are strings
+def sf(v, d=0.0):
+    try: return float(v or d)
+    except: return float(d)
+
+def si(v, d=0):
+    try: return int(float(v or d))
+    except: return int(d)
+
 
 DEFAULT_CONFIG = {
     "company": {"name": "My Company", "address": ""},
@@ -542,15 +609,15 @@ elif PAGE == "employees":
 
             st.markdown("#### 💰 Salary Structure")
             c1,c2,c3 = st.columns(3)
-            gross   = c1.number_input("Gross Salary (₹)",     value=float(val("gross_salary",0)),    min_value=0.0, step=100.0)
-            basic_s = c2.number_input("Basic (₹)",            value=float(val("basic",0)),           min_value=0.0, step=100.0)
-            hra_s   = c3.number_input("HRA (₹)",              value=float(val("hra",0)),             min_value=0.0, step=100.0)
+            gross   = c1.number_input("Gross Salary (₹)",     value=sf(val("gross_salary",0)),    min_value=0.0, step=100.0)
+            basic_s = c2.number_input("Basic (₹)",            value=sf(val("basic",0)),           min_value=0.0, step=100.0)
+            hra_s   = c3.number_input("HRA (₹)",              value=sf(val("hra",0)),             min_value=0.0, step=100.0)
             c1,c2,c3 = st.columns(3)
-            conv_s  = c1.number_input("Conveyance (₹)",       value=float(val("conveyance",0)),      min_value=0.0, step=100.0)
-            spec_s  = c2.number_input("Special Allowance (₹)",value=float(val("special_allowance",0)),min_value=0.0,step=100.0)
-            med_s   = c3.number_input("Medical Allowance (₹)",value=float(val("medical_allowance",0)),min_value=0.0,step=100.0)
+            conv_s  = c1.number_input("Conveyance (₹)",       value=sf(val("conveyance",0)),      min_value=0.0, step=100.0)
+            spec_s  = c2.number_input("Special Allowance (₹)",value=sf(val("special_allowance",0)),min_value=0.0,step=100.0)
+            med_s   = c3.number_input("Medical Allowance (₹)",value=sf(val("medical_allowance",0)),min_value=0.0,step=100.0)
             c1,c2 = st.columns(2)
-            food_s  = c1.number_input("Food Allowance (₹)",   value=float(val("food_allowance",0)),  min_value=0.0, step=100.0)
+            food_s  = c1.number_input("Food Allowance (₹)",   value=sf(val("food_allowance",0)),  min_value=0.0, step=100.0)
             emp_status = c2.selectbox("Employee Status",["Active","Inactive"], index=0 if val("status","Active")=="Active" else 1)
             c1,c2 = st.columns(2)
             pf_app  = c1.selectbox("PF Applicable",  ["Yes","No"], index=0 if val("pf_applicable","Yes")=="Yes" else 1)
@@ -1109,11 +1176,11 @@ elif PAGE == "settings":
 
     with tab2:
         with st.form("att_form"):
-            grace   = st.number_input("Grace Period (Minutes)",    value=int(config["shifts"]["grace_period_minutes"]),    min_value=0, max_value=30)
-            ot_thr  = st.number_input("OT Threshold (Min after shift end)", value=int(config["shifts"]["overtime_threshold_minutes"]), min_value=0, max_value=120)
+            grace   = st.number_input("Grace Period (Minutes)",    value=si(config["shifts"]["grace_period_minutes"]),    min_value=0, max_value=30)
+            ot_thr  = st.number_input("OT Threshold (Min after shift end)", value=si(config["shifts"]["overtime_threshold_minutes"]), min_value=0, max_value=120)
             week_off= st.selectbox("Week Off Day",["Sunday","Saturday","Monday"],index=["Sunday","Saturday","Monday"].index(config["attendance"]["week_off"]))
             sandwich= st.checkbox("Enable Sandwich Rule", value=config["attendance"]["sandwich_rule"])
-            min_days= st.number_input("Min Working Days/Week", value=int(config["attendance"]["min_days_per_week"]), min_value=1, max_value=6)
+            min_days= st.number_input("Min Working Days/Week", value=si(config["attendance"]["min_days_per_week"]), min_value=1, max_value=6)
             if st.form_submit_button("💾 Save Attendance Rules", use_container_width=True):
                 config["shifts"]["grace_period_minutes"]     = grace
                 config["shifts"]["overtime_threshold_minutes"]= ot_thr
@@ -1131,7 +1198,7 @@ elif PAGE == "settings":
             sn = c1.text_input("Name",          s["name"],         key=f"sn{i}")
             ss = c2.text_input("Start (HH:MM)", s["start"],        key=f"ss{i}")
             se = c3.text_input("End (HH:MM)",   s["end"],          key=f"se{i}")
-            sh = c4.number_input("Hrs",         float(s["total_hours"]), key=f"sh{i}", min_value=0.0)
+            sh = c4.number_input("Hrs",         sf(s.get("total_hours"), 9.0), key=f"sh{i}", min_value=0.0)
             upd_shifts.append({"name":sn,"start":ss,"end":se,"total_hours":sh})
 
         st.markdown("#### ➕ Add New Shift")
@@ -1166,7 +1233,7 @@ elif PAGE == "settings":
                 uc = {"name":cname,"type":ctype,"taxable":ctaxable,"enabled":cenabled}
                 if ctype=="percentage":
                     cc1,cc2 = st.columns(2)
-                    uc["value"]          = cc1.number_input("%", float(comp.get("value",40)), key=f"cpct{i}")
+                    uc["value"]          = cc1.number_input("%", sf(comp.get("value", 40), 40), key=f"cpct{i}")
                     uc["percentage_of"]  = cc2.text_input("Of", comp.get("percentage_of","Basic"), key=f"cpof{i}")
                 upd_comps.append(uc)
 
@@ -1188,7 +1255,7 @@ elif PAGE == "settings":
         st.markdown("### ⏰ Overtime")
         with st.form("ot_form"):
             ot_en   = st.checkbox("OT Enabled",        config["overtime"]["enabled"])
-            ot_rate = st.number_input("OT Multiplier", float(config["overtime"]["rate_multiplier"]), min_value=1.0, max_value=3.0, step=0.5)
+            ot_rate = st.number_input("OT Multiplier", sf(config["overtime"]["rate_multiplier"], 1.5), min_value=1.0, max_value=3.0, step=0.5)
             ot_base = st.selectbox("OT Base",["Basic","Gross"], index=["Basic","Gross"].index(config["overtime"]["calculation_base"]))
             if st.form_submit_button("💾 Save OT"):
                 config["overtime"]["enabled"]          = ot_en
@@ -1201,13 +1268,13 @@ elif PAGE == "settings":
         with st.form("pf_form"):
             pf_en  = st.checkbox("PF Enabled", config["pf"]["enabled"])
             c1,c2  = st.columns(2)
-            pf_emp = c1.number_input("Employee PF %", float(config["pf"]["employee_percentage"]), min_value=0.0, max_value=100.0, step=0.5)
-            pf_er  = c2.number_input("Employer PF %", float(config["pf"]["employer_percentage"]), min_value=0.0, max_value=100.0, step=0.5)
+            pf_emp = c1.number_input("Employee PF %", sf(config["pf"]["employee_percentage"], 12), min_value=0.0, max_value=100.0, step=0.5)
+            pf_er  = c2.number_input("Employer PF %", sf(config["pf"]["employer_percentage"], 12), min_value=0.0, max_value=100.0, step=0.5)
             pf_base_opts = ["Basic","Basic + DA","Gross"]
             pf_base = st.selectbox("PF Base", pf_base_opts, index=pf_base_opts.index(config["pf"]["pf_base"]) if config["pf"]["pf_base"] in pf_base_opts else 0)
             pf_cap = st.checkbox("Cap at ₹15,000 Basic", value=config["pf"]["cap_at_15000"])
             st.info("💡 Uncheck = PF on actual Basic (above ₹15,000 too)")
-            eps_pct= st.number_input("EPS %", float(config["pf"]["eps_percentage"]), min_value=0.0, max_value=20.0, step=0.5)
+            eps_pct= st.number_input("EPS %", sf(config["pf"]["eps_percentage"], 8.33), min_value=0.0, max_value=20.0, step=0.5)
             if st.form_submit_button("💾 Save PF", use_container_width=True):
                 config["pf"]["enabled"]             = pf_en
                 config["pf"]["employee_percentage"] = pf_emp
@@ -1222,9 +1289,9 @@ elif PAGE == "settings":
         with st.form("esic_form"):
             esic_en  = st.checkbox("ESIC Enabled", config["esic"]["enabled"])
             c1,c2    = st.columns(2)
-            esic_emp = c1.number_input("Employee %", float(config["esic"]["employee_percentage"]), min_value=0.0, max_value=10.0, step=0.25)
-            esic_er  = c2.number_input("Employer %", float(config["esic"]["employer_percentage"]), min_value=0.0, max_value=10.0, step=0.25)
-            esic_ceil= st.number_input("Wage Ceiling (₹)", int(config["esic"]["wage_ceiling"]), min_value=0, step=1000)
+            esic_emp = c1.number_input("Employee %", sf(config["esic"]["employee_percentage"], 0.75), min_value=0.0, max_value=10.0, step=0.25)
+            esic_er  = c2.number_input("Employer %", sf(config["esic"]["employer_percentage"], 3.25), min_value=0.0, max_value=10.0, step=0.25)
+            esic_ceil= st.number_input("Wage Ceiling (₹)", si(config["esic"]["wage_ceiling"], 21000), min_value=0, step=1000)
             if st.form_submit_button("💾 Save ESIC", use_container_width=True):
                 config["esic"]["enabled"]             = esic_en
                 config["esic"]["employee_percentage"] = esic_emp
@@ -1247,16 +1314,16 @@ elif PAGE == "settings":
         with st.form("leave_form"):
             st.markdown("#### Privilege Leave (PL)")
             c1,c2,c3 = st.columns(3)
-            pl_a  = c1.number_input("Annual Days", int(config["leave"]["pl"]["annual"]), min_value=0)
+            pl_a  = c1.number_input("Annual Days", si(config["leave"]["pl"]["annual"], 12), min_value=0)
             pl_cf = c2.checkbox("Carry Forward",   config["leave"]["pl"]["carry_forward"])
-            pl_mc = c3.number_input("Max CF Days", int(config["leave"]["pl"]["max_carry_forward"]), min_value=0)
+            pl_mc = c3.number_input("Max CF Days", si(config["leave"]["pl"]["max_carry_forward"], 30), min_value=0)
             st.markdown("#### Casual Leave (CL)")
             c1,c2 = st.columns(2)
-            cl_a  = c1.number_input("Annual Days", int(config["leave"]["cl"]["annual"]), min_value=0, key="cl_a")
+            cl_a  = c1.number_input("Annual Days", si(config["leave"]["cl"]["annual"], 6), min_value=0, key="cl_a")
             cl_cf = c2.checkbox("Carry Forward",   config["leave"]["cl"]["carry_forward"], key="cl_cf")
             st.markdown("#### Sick Leave (SL)")
             c1,c2 = st.columns(2)
-            sl_a  = c1.number_input("Annual Days", int(config["leave"]["sl"]["annual"]), min_value=0, key="sl_a")
+            sl_a  = c1.number_input("Annual Days", si(config["leave"]["sl"]["annual"], 6), min_value=0, key="sl_a")
             sl_cf = c2.checkbox("Carry Forward",   config["leave"]["sl"]["carry_forward"], key="sl_cf")
             if st.form_submit_button("💾 Save Leave Policy", use_container_width=True):
                 config["leave"]["pl"]["annual"]        = pl_a
